@@ -10,7 +10,138 @@
          online at your node.js address under /socket.io/socket.io.js 
          You can disable that on the server if desired
     -->
+    <script src="/socket.io/socket.io.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-core/5.8.34/browser.min.js"></script>
+    <script type="text/babel">
+        
+        let user;
+        let socket;
+        let message;
+        let chat;
+        let roomsList;
+        let room;
+        let newRoom;
+        let switchButton;
+        
+        const connectSocket = (e) => {
+            socket = io.connect();
+            
+            socket.on('connect', () => {
+                user = document.querySelector("#username").value;
+                room = document.querySelector("#roomList").value;
+                if(room === 'newRoom') {
+                    if(newRoom.value === '') {
+                      // If the user tries to create a room but doesn't give a room name, put them in room 1
+                      room = 'Room 1';
+                    } else {
+                      // Otherwise, set the room to the name the user entered
+                      room = newRoom.value;  
+                    }
+                }
+                
+                if(!user) {
+                    user = 'unknown';
+                }
+                
+                socket.emit('join', { name: user , room: room });
+            });
+            
+            socket.on('msg', (data) => {
+                // Display messages in the chat
+                if(data.name) {
+                  chat.textContent += `\n${data.name}: ${data.msg}`;
+                }
+                else {
+                  chat.textContent += `\n${data.msg}`;
+                }
+            });
+            
+            socket.on('updateRooms', (data) => {
+                updateRooms(data);
+            });
+            
+            // Enable the message and send fields, and our switch room button
+            message.removeAttribute('disabled');
+            document.querySelector("#send").removeAttribute('disabled');
+            document.querySelector("#switch").removeAttribute('disabled');
+            document.querySelector("#connect").setAttribute('disabled', true);
+        };
+
+        const sendSocket = (e) => {
+            // Send the message to the server
+            socket.emit('msgToServer', { name: user, msg: message.value, room: room });
+            
+            // Clear the message input
+            message.value = "";
+        };
+
+        const updateRooms = (data) => {
+            console.dir("in");
+            
+              roomList.innerHTML = '';
+                console.dir('updating');
+              for(let i = 0; i < data.rooms.length; i++) {
+                let option = document.createElement('option');
+                option.value = option.textContent = data.rooms[i];
+                roomList.appendChild(option);
+              }
+              let createRoom = document.createElement('option');
+              createRoom.value = 'newRoom';
+              createRoom.textContent = 'Join a Different Room';
+              roomList.appendChild(createRoom);
+        };
+
+        const switchRoom = (e) => {
+            room = document.querySelector("#roomList").value;
+            if(room === 'newRoom') {
+                if(newRoom.value === '') {
+                    // If the user tries to create a room but doesn't give a room name, put them in room 1
+                    room = 'Room 1';
+                } else {
+                    // Otherwise, set the room to the name the user entered
+                    room = newRoom.value;  
+                }
+            }
+            socket.emit('switch', { name: user , room: room });
+        };
+
+        const init = () => {   
+            message = document.querySelector("#message");
+            chat = document.querySelector("#chat");
+            roomsList = document.querySelector("#roomList");
+            newRoom = document.querySelector("#newRoom");
+            
+            const connect = document.querySelector("#connect");
+            connect.addEventListener('click', connectSocket);
+            const send = document.querySelector("#send");
+            send.addEventListener('click', sendSocket);
+            const switchButton = document.querySelector("#switch");
+            switchButton.addEventListener('click', switchRoom);
+            
+            // Room select
+            document.querySelector("#roomList").onchange = function(e) {
+                console.dir("CHANGING ROOM");
+                room = e.target.value;
+                console.dir(room);
+                if(room === 'newRoom') {
+                    newRoom.removeAttribute('disabled');
+                    newRoom.value = 'Enter Room Name';
+                } else {
+                    newRoom.setAttribute('disabled', true);
+                    newRoom.value = '';
+                }
+            }
+            
+            // Send message on Enter
+            message.addEventListener('keypress', function(e) {
+                if(e.keyCode == 13 && message.value != "") {
+                    sendSocket(e);
+                }
+            });
+        };
+
+        window.onload = init;
+    </script>
 	<style>
 		textarea {
 			display: block;
@@ -21,12 +152,23 @@
 <body>
 	<label for="user">Username:</label>
 	<input id="username" name="user" type="text"/>
+    <label for="roomList">Room:</label>
+    <select id="roomList">
+        <option value="Room 1">Room 1</option>
+        <option value="Room 2">Room 2</option>
+        <option value="newRoom">Join a Different Room</option>
+    </select>
+    <input id="newRoom" name="newRoom" type="text" disabled/>
 	<input id="connect" type='button' value='connect'/>
+    <input id="switch" type='button' value='switch'/>
 	<br/>
 	<label for="message">Message:</label>
-	<input id="message" name="message" type="text"/>
-	<input id="send" type="button" value="send" />
+	<input id="message" name="message" type="text" disabled/>
+	<input id="send" type="button" value="send" disabled/>
 	
 	<textarea id="chat" rows="20" cols="40" readonly> </textarea>
+    
+    <!-- List of users in your room -->
+    
 </body>
 </html>
