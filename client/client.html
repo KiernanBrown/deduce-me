@@ -20,6 +20,7 @@
         let chat;
         let roomsList;
         let room;
+        let selectedRoom = 'Room 1';
         let newRoom;
         let switchButton;
         
@@ -28,7 +29,7 @@
             
             socket.on('connect', () => {
                 user = document.querySelector("#username").value;
-                room = document.querySelector("#roomList").value;
+                room = selectedRoom;
                 if(room === 'newRoom') {
                     if(newRoom.value === '') {
                       // If the user tries to create a room but doesn't give a room name, put them in room 1
@@ -92,7 +93,7 @@
         };
 
         const switchRoom = (e) => {
-            room = document.querySelector("#roomList").value;
+            room = selectedRoom;
             if(room === 'newRoom') {
                 if(newRoom.value === '') {
                     // If the user tries to create a room but doesn't give a room name, put them in room 1
@@ -120,10 +121,8 @@
             
             // Room select
             document.querySelector("#roomList").onchange = function(e) {
-                console.dir("CHANGING ROOM");
-                room = e.target.value;
-                console.dir(room);
-                if(room === 'newRoom') {
+                selectedRoom = e.target.value;
+                if(selectedRoom === 'newRoom') {
                     newRoom.removeAttribute('disabled');
                     newRoom.value = 'Enter Room Name';
                 } else {
@@ -160,7 +159,7 @@
     </select>
     <input id="newRoom" name="newRoom" type="text" disabled/>
 	<input id="connect" type='button' value='connect'/>
-    <input id="switch" type='button' value='switch'/>
+    <input id="switch" type='button' value='switch' disabled/>
 	<br/>
 	<label for="message">Message:</label>
 	<input id="message" name="message" type="text" disabled/>

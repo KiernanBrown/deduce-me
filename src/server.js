@@ -56,7 +56,6 @@ const enterRoom = (sock, data) => {
     // Then add them as a property of that user object
     roomIndex = rooms.indexOf(data.room);
     users[roomIndex][Object.keys(users[roomIndex]).length] = user;
-    console.dir(users);
   } else {
     // Otherwise this is a new room
     // Add a new userObj to our array of user objects
@@ -66,7 +65,6 @@ const enterRoom = (sock, data) => {
     userObj[0] = user;
     users.push(userObj);
     rooms.push(data.room);
-    console.dir(users);
 
     // Update the room list for all clients
     io.sockets.emit('updateRooms', { rooms });
