@@ -1,15 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- import the websocket client library. You can code websockets from scratch
-         but we will just import a library. In this case we are using socket.io which is 
-         one of the most popular and feature rich websocket libraries.
-         
-         You can point the src for the script to any host online, but
-         by default the socket.io nodejs library will host the client library
-         online at your node.js address under /socket.io/socket.io.js 
-         You can disable that on the server if desired
-    -->
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-core/5.8.34/browser.min.js"></script>
     <script type="text/babel">
@@ -18,126 +9,100 @@
         let socket;
         let message;
         let chat;
-        let roomsList;
         let room;
-        let selectedRoom = 'Room 1';
-        let newRoom;
-        let switchButton;
+        // let alivePlayers;
+        let playerChoice;
+        let role;
+        let playerList;
         
         const connectSocket = (e) => {
-            socket = io.connect();
+          socket = io.connect();
             
-            socket.on('connect', () => {
-                user = document.querySelector("#username").value;
-                room = selectedRoom;
-                if(room === 'newRoom') {
-                    if(newRoom.value === '') {
-                      // If the user tries to create a room but doesn't give a room name, put them in room 1
-                      room = 'Room 1';
-                    } else {
-                      // Otherwise, set the room to the name the user entered
-                      room = newRoom.value;  
-                    }
-                }
+          socket.on('connect', () => {
+            user = document.querySelector("#username").value;
                 
-                if(!user) {
-                    user = 'unknown';
-                }
+            if(!user) {
+              user = 'unknown';
+            }
                 
-                socket.emit('join', { name: user , room: room });
-            });
+            socket.emit('join', { name: user });
+          });
             
-            socket.on('msg', (data) => {
-                // Display messages in the chat
-                if(data.name) {
-                  chat.textContent += `\n${data.name}: ${data.msg}`;
-                }
-                else {
-                  chat.textContent += `\n${data.msg}`;
-                }
+          socket.on('msg', (data) => {
+            // Display messages in the chat
+            if(data.name) {
+                chat.textContent += `\n${data.name}: ${data.msg}`;
+              }
+              else {
+                chat.textContent += `\n${data.msg}`;
+              }
             });
+          
+          socket.on('joinedRoom', (data) => {
+            room = data.roomName;
+          });
+          
+          socket.on('nightStarted', (data) => {
+            showNightOptions(data.role);
+          });
             
-            socket.on('updateRooms', (data) => {
-                updateRooms(data);
-            });
-            
-            // Enable the message and send fields, and our switch room button
-            message.removeAttribute('disabled');
-            document.querySelector("#send").removeAttribute('disabled');
-            document.querySelector("#switch").removeAttribute('disabled');
-            document.querySelector("#connect").setAttribute('disabled', true);
+          // Enable the message and send fields
+          message.removeAttribute('disabled');
+          document.querySelector("#send").removeAttribute('disabled');
+          document.querySelector("#connect").setAttribute('disabled', true);
         };
 
         const sendSocket = (e) => {
-            // Send the message to the server
+          // Send the message to the server
+          if(message.value !== '') {
             socket.emit('msgToServer', { name: user, msg: message.value, room: room });
             
             // Clear the message input
             message.value = "";
-        };
-
-        const updateRooms = (data) => {
-            console.dir("in");
-            
-              roomList.innerHTML = '';
-                console.dir('updating');
-              for(let i = 0; i < data.rooms.length; i++) {
-                let option = document.createElement('option');
-                option.value = option.textContent = data.rooms[i];
-                roomList.appendChild(option);
-              }
-              let createRoom = document.createElement('option');
-              createRoom.value = 'newRoom';
-              createRoom.textContent = 'Join a Different Room';
-              roomList.appendChild(createRoom);
-        };
-
-        const switchRoom = (e) => {
-            room = selectedRoom;
-            if(room === 'newRoom') {
-                if(newRoom.value === '') {
-                    // If the user tries to create a room but doesn't give a room name, put them in room 1
-                    room = 'Room 1';
-                } else {
-                    // Otherwise, set the room to the name the user entered
-                    room = newRoom.value;  
-                }
-            }
-            socket.emit('switch', { name: user , room: room });
+          }
         };
 
         const init = () => {   
-            message = document.querySelector("#message");
-            chat = document.querySelector("#chat");
-            roomsList = document.querySelector("#roomList");
-            newRoom = document.querySelector("#newRoom");
-            
-            const connect = document.querySelector("#connect");
-            connect.addEventListener('click', connectSocket);
-            const send = document.querySelector("#send");
-            send.addEventListener('click', sendSocket);
-            const switchButton = document.querySelector("#switch");
-            switchButton.addEventListener('click', switchRoom);
-            
-            // Room select
-            document.querySelector("#roomList").onchange = function(e) {
-                selectedRoom = e.target.value;
-                if(selectedRoom === 'newRoom') {
-                    newRoom.removeAttribute('disabled');
-                    newRoom.value = 'Enter Room Name';
-                } else {
-                    newRoom.setAttribute('disabled', true);
-                    newRoom.value = '';
-                }
+          message = document.querySelector("#message");
+          chat = document.querySelector("#chat");
+          
+          const connect = document.querySelector("#connect");
+          connect.addEventListener('click', connectSocket);
+          const send = document.querySelector("#send");
+          send.addEventListener('click', sendSocket);
+           
+          // Send message on Enter
+          message.addEventListener('keypress', function(e) {
+            if(e.keyCode === 13) {
+              sendSocket(e);
             }
-            
-            // Send message on Enter
-            message.addEventListener('keypress', function(e) {
-                if(e.keyCode == 13 && message.value != "") {
-                    sendSocket(e);
-                }
-            });
+          });
         };
+        
+        // No longer using this, role actions will be handled in chat
+        /* const showNightOptions = (role) => {
+          let bigString = "";
+          switch (role) {
+            case 'The Medic': bigString = `${bigString} <h3>Choose the player that you want to heal for tonight:</h3>`;
+              bigString = `${bigString} <em>${playerChoice}</em>`;
+              bigString = `${bigString} <ul>`;
+              for(let i = 0; i < alivePlayers.length; i++) {
+                bigString = `${bigString} <li onclick="playerChoice = alivePlayers[${i}]; showNightOptions();">${alivePlayers[i]}</li>`;
+              }
+              bigString = `${bigString} </ul>`;
+              break;
+          }
+          
+          document.querySelector("#content").innerHTML = bigString;
+        };
+
+        const showDayOptions = (data) => {
+          let bigString = "";
+          bigString = `${bigString} <textarea id="chat" rows="20" cols="40" readonly> </textarea>`;
+          bigString = `${bigString} <label for="message">Message:</label>`;
+          bigString = `${bigString} <input id="message" name="message" type="text" disabled/>`;
+          bigString = `${bigString} <input id="send" type="button" value="Send" disabled/>`;
+        }; */
 
         window.onload = init;
     </script>
@@ -149,25 +114,62 @@
 	</style>
 </head>
 <body>
-	<label for="user">Username:</label>
-	<input id="username" name="user" type="text"/>
-    <label for="roomList">Room:</label>
-    <select id="roomList">
-        <option value="Room 1">Room 1</option>
-        <option value="Room 2">Room 2</option>
-        <option value="newRoom">Join a Different Room</option>
-    </select>
-    <input id="newRoom" name="newRoom" type="text" disabled/>
-	<input id="connect" type='button' value='connect'/>
-    <input id="switch" type='button' value='switch' disabled/>
-	<br/>
-	<label for="message">Message:</label>
-	<input id="message" name="message" type="text" disabled/>
-	<input id="send" type="button" value="send" disabled/>
-	
-	<textarea id="chat" rows="20" cols="40" readonly> </textarea>
-    
-    <!-- List of users in your room -->
+  <label for="user">Username:</label>
+  <input id="username" name="user" type="text"/>
+  <input id="connect" type='button' value='Join a Game'/>
+  <br/>
+  <br/>
+  <section id='content'>
+    <textarea id="chat" rows="20" cols="40" readonly> </textarea>
+    <label for="message">Message:</label>
+    <input id="message" name="message" type="text" disabled/>
+    <input id="send" type="button" value="Send" disabled/>
+  </section>
+  
+  <p>For this prototype, you are able to join a room and the game will start after at least 6 people are present and 20 seconds have passed. There are timers set up to advance the game from night into day. There is the start of chat commands (!choose displayName) which will be used in order to have roles use their actions in the game. The role actions and voting themselves are not implemented, but I wanted to make sure the foundation of the game setting up and running itself were in place first.</p>
+  
+  <p>The goal of this game is to create an engaging Social Deduction game in the style of Mafia/Werewolf where every player has a power role, or a role that allows them to take actions or gain information. Here is some planning for the roles and how the game will plan out.</p>
+  
+  <h4>Role Rules:</h4>
+  <ol>
+    <li>There is always one Assassin. In a game of 6, the one evil will always be an assassin</li>
+    <li>There can only be one of each role</li>
+    <li>In a game of 12, there will be one of each role</li>
+  </ol>
+  
+  <h4>Role Splits</h4>
+  <ul>
+    <li>6 Players: 1 Evil, 5 good</li>
+    <li>7 Players: 2 Evil, 5 good</li>
+    <li>8 Players: 2 Evil, 6 good</li>
+    <li>9 Players: 2 Evil, 7 good</li>
+    <li>10 Players: 3 Evil, 7 good</li>
+    <li>11 Players: 3 Evil, 8 good</li>
+    <li>12 Players: 4 Evil, 8 good</li>
+  </ul>
+
+  <h4>Roles and Descriptions</h4>
+  <ul>
+    <li>The Medic: Good, Visit at night to heal and prevent death</li>
+    <li>The Investigator: Good, Visit at night to get the faction of the player (Good or Evil)</li>
+    <li>The Follower: Good, watch a person to see who they visit</li>
+    <li>The Observer: Good, watch a person to see who visits them</li>
+    <li>The Guardian: Good, Protect a player, dying or being poisoned in their place, or Attempt to kill a player. If the player you attempt to kill is Good, you die instead.</li>
+    <li>The Flirt: Good, distract someone at night, stopping their night action</li>
+    <li>The Vigilante: Good, One bullet, shoots someone at night (one use only)</li>
+    <li>The Crier: Good, Can talk to all players at night but name is hidden</li>
+    <li>The Assassin: Evil, Kills once a night</li>
+    <li>The Phantom: Evil, Can choose to permanently disguise themselves as the player the Assassin kills that night (one use only)</li>
+    <li>The Chemist: Evil, Poisons a player, the player is notified of being poisoned and dies the next night if they are not healed before then</li>
+    <li>The Informant: Evil, gets the specific role of a player</li>
+  </ul>
+  
+  <em>Night Actions play out in this order</em>
+  <p>The Flirt -> The Chemist -> The Medic -> The Guardian -> The Follower -> The Observer -> The Informant -> The Assassin == The Vigilante -> The Phantom</p>
+
+  <p>The chemist poisons before the medic heals. If the medic heals the player who is being poisoned, they are notified that they had been poisoned, but that they were healed of the poison. Kills from The Assassin and The Vigilante will happen at the same time, so even if one of these players dies, the kill still happens.</p>
+  
+  <!-- List of Users -->
     
 </body>
 </html>
