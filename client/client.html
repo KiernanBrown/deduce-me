@@ -53,15 +53,6 @@
             displayName = data.displayName;
           });
           
-          // Disable chat at night if your role cannot talk at night
-          socket.on('nightStarted', (data) => {
-            if(role !== 'The Crier' || role !== 'The Assassin' || role !== 'The Informant' || role !== 'The Chemist') {
-              message.value = 'You cannot talk at night';
-              message.setAttribute('disabled', true);
-              document.querySelector("#send").setAttribute('disabled', true);
-            }
-          });
-          
           // Set our phase based on what is happening in the game
           socket.on('setPhase', (data) => {
             phase = data.phase;
@@ -71,7 +62,9 @@
               message.value = 'You are dead';
               message.setAttribute('disabled', true);
               document.querySelector("#send").setAttribute('disabled', true);
-            } else if(phase === 'Night') {
+            } 
+            
+            /* else if(phase === 'Night') {
               // Disable chat at night if your role cannot talk at night
               if(role !== 'The Crier' && role !== 'The Assassin' && role !== 'The Informant' && role !== 'The Chemist') {
                 message.value = 'You cannot talk at night';
@@ -83,8 +76,8 @@
               message.value = '';
               message.removeAttribute('disabled');
               document.querySelector("#send").removeAttribute('disabled');
-            }
-          })
+            } */
+          });
           
           // Set the timer to the time given by the server
           socket.on('setTimer', (data) => {
@@ -199,6 +192,13 @@
   <section id='info'>
     <p>Deduce Me is a Social Deduction game in the style of Mafia/Werewolf where every player has a power role, or a role that allows them to take actions or gain information. Players are assigned a role which is either good or evil. Good players aim to kill all of the evil players through use of their role actions or through executing them during a trial in the day. If the majority of the players accuse the same person during the day, that player will be voted on. Then, players can cast a vote for the accused being either executed or pardoned, or they can abstain from voting. If the majority of voting players choose to execute, the player is executed. After a vote, every player's vote is revealed. Evil players aim to equal or outnumber the good players through killing off good players, whether this be through role actions or through executing good players during votes. The game ends when either of these conditions are met, and the good or evil team wins.</p>
 
+    <h3>Day Phases</h3>
+    <ul>
+      <li>Night: Players take their role actions at night. During night, talking is restricted. The Crier can speak with everyone at night, but they are the only good player who can talk. Evil players can talk freely, and only players who have an evil alignment will be able to see those messages.</li>
+      <li>Day: Players can discuss and accuse others of being evil. If the majority of players accuse the same person with the !choose command, the accused player is voted on and phase shifts to Day Voting.</li>
+      <li>Day Voting: Players vote on the accused player. The day ends 10 seconds after the results of the voting.</li>
+    </ul>
+    
     <h3>Commands</h3>
     <ul>
       <li>!choose displayName: This command chooses the player that you specify. During night time, this is used to choose that player to perform your role action on. During the day, this accuses that player of being evil.</li>
