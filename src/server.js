@@ -63,10 +63,15 @@ const setTimer = (r, time) => {
 // Function to decrease the timer by 1
 const decreaseTimer = (r) => {
   const room = r;
-  room.timer--;
-  io.sockets.in(room.roomName).emit('setTimer', {
-    time: room.timer,
-  });
+  if (room.running) {
+    room.timer--;
+    io.sockets.in(room.roomName).emit('setTimer', {
+      time: room.timer,
+    });
+  } else {
+    clearInterval(roomIntervals[rooms.indexOf(room)]);
+    roomIntervals[rooms.indexOf(room)] = null;
+  }
 };
 
 // Returns an array of all players who chose the choice specified
