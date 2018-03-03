@@ -1,19 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <title>Deduce Me</title>
+    <link rel="stylesheet" type="text/css" href="/style.css">
+    <link href="https://fonts.googleapis.com/css?family=Righteous|Roboto" rel="stylesheet">
+  
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-core/5.8.34/browser.min.js"></script>
     <script type="text/babel">
         
         let user;
+        let displayName;
         let socket;
         let message;
         let chat;
         let room;
-        // let alivePlayers;
         let playerChoice;
         let role;
-        let playerList;
+        let userList;
+        let aliveNames = [];
+        let timer = 20;
+        let phase = 'Waiting to start';
         
         const connectSocket = (e) => {
           socket = io.connect();
@@ -42,8 +49,78 @@
             room = data.roomName;
           });
           
+          socket.on('setDisplayName', (data) => {
+            displayName = data.displayName;
+          });
+          
+          // Disable chat at night if your role cannot talk at night
           socket.on('nightStarted', (data) => {
-            showNightOptions(data.role);
+            if(role !== 'The Crier' || role !== 'The Assassin' || role !== 'The Informant' || role !== 'The Chemist') {
+              message.value = 'You cannot talk at night';
+              message.setAttribute('disabled', true);
+              document.querySelector("#send").setAttribute('disabled', true);
+            }
+          });
+          
+          // Set our phase based on what is happening in the game
+          socket.on('setPhase', (data) => {
+            phase = data.phase;
+
+            if(!aliveNames.includes(displayName)) {
+              // If the player is dead, we disable chat
+              message.value = 'You are dead';
+              message.setAttribute('disabled', true);
+              document.querySelector("#send").setAttribute('disabled', true);
+            } else if(phase === 'Night') {
+              // Disable chat at night if your role cannot talk at night
+              if(role !== 'The Crier' && role !== 'The Assassin' && role !== 'The Informant' && role !== 'The Chemist') {
+                message.value = 'You cannot talk at night';
+                message.setAttribute('disabled', true);
+                document.querySelector("#send").setAttribute('disabled', true);
+              }
+            } else if(phase === 'Day') {
+              // Enable chat during day
+              message.value = '';
+              message.removeAttribute('disabled');
+              document.querySelector("#send").removeAttribute('disabled');
+            }
+          })
+          
+          // Set the timer to the time given by the server
+          socket.on('setTimer', (data) => {
+            timer = data.time;
+            document.querySelector('#timer').textContent = `${phase} - Timer: ${timer}`;
+          });
+          
+          // Set our display name at the start of the game
+          socket.on('setDisplayName', (data) => {
+            displayName = data.displayName;
+            document.querySelector('#displayName').textContent = `Display Name: ${displayName}`;
+          });
+          
+          // Set our role at the start of the game
+          socket.on('setRole', (data) => {
+            role = data.role;
+            document.querySelector('#role').textContent = `Role: ${role}`;
+          });
+          
+          // Set our user list when getting a list of users from the server
+          socket.on('setUserList', (data) => {
+            userList = data.users;
+            console.dir(userList);
+            aliveNames = [];
+            let bigString = '<ul id="userList">';
+            let keys = Object.keys(userList);
+            for(let i = 0; i < userList.length; i++) {
+              console.dir(userList[i]);
+              let player = userList[i];
+              if(player.alive) {
+                aliveNames.push(player.displayName);
+                bigString = `${bigString} <li class='userObj'>${player.displayName}</li>`;
+              }
+            }
+            bigString = `${bigString} </ul>`;
+            document.querySelector('#userList').innerHTML = bigString;
           });
             
           // Enable the message and send fields
@@ -55,7 +132,8 @@
         const sendSocket = (e) => {
           // Send the message to the server
           if(message.value !== '') {
-            socket.emit('msgToServer', { name: user, msg: message.value, room: room });
+            if (displayName) socket.emit('msgToServer', { name: displayName, msg: message.value, room: room });
+            else socket.emit('msgToServer', { name: user, msg: message.value, room: room });
             
             // Clear the message input
             message.value = "";
@@ -78,31 +156,6 @@
             }
           });
         };
-        
-        // No longer using this, role actions will be handled in chat
-        /* const showNightOptions = (role) => {
-          let bigString = "";
-          switch (role) {
-            case 'The Medic': bigString = `${bigString} <h3>Choose the player that you want to heal for tonight:</h3>`;
-              bigString = `${bigString} <em>${playerChoice}</em>`;
-              bigString = `${bigString} <ul>`;
-              for(let i = 0; i < alivePlayers.length; i++) {
-                bigString = `${bigString} <li onclick="playerChoice = alivePlayers[${i}]; showNightOptions();">${alivePlayers[i]}</li>`;
-              }
-              bigString = `${bigString} </ul>`;
-              break;
-          }
-          
-          document.querySelector("#content").innerHTML = bigString;
-        };
-
-        const showDayOptions = (data) => {
-          let bigString = "";
-          bigString = `${bigString} <textarea id="chat" rows="20" cols="40" readonly> </textarea>`;
-          bigString = `${bigString} <label for="message">Message:</label>`;
-          bigString = `${bigString} <input id="message" name="message" type="text" disabled/>`;
-          bigString = `${bigString} <input id="send" type="button" value="Send" disabled/>`;
-        }; */
 
         window.onload = init;
     </script>
@@ -114,62 +167,83 @@
 	</style>
 </head>
 <body>
-  <label for="user">Username:</label>
-  <input id="username" name="user" type="text"/>
-  <input id="connect" type='button' value='Join a Game'/>
-  <br/>
-  <br/>
-  <section id='content'>
-    <textarea id="chat" rows="20" cols="40" readonly> </textarea>
-    <label for="message">Message:</label>
-    <input id="message" name="message" type="text" disabled/>
-    <input id="send" type="button" value="Send" disabled/>
+  <h1 id='pageTitle'>Deduce Me: A Social Deduction Game</h1>
+  <section id='login'>
+    <label for="user">Username:</label>
+    <input id="username" name="user" type="text"/>
+    <input id="connect" type='button' value='Join a Game'/>
   </section>
   
-  <p>For this prototype, you are able to join a room and the game will start after at least 6 people are present and 20 seconds have passed. There are timers set up to advance the game from night into day. There is the start of chat commands (!choose displayName) which will be used in order to have roles use their actions in the game. The role actions and voting themselves are not implemented, but I wanted to make sure the foundation of the game setting up and running itself were in place first.</p>
+  <section id='userContent'>
+    <h2 id='timer'>Waiting to start - Timer: 20</h2>
+    <h4 id ='displayName'>Display Name: None</h4>
+    <h4 id = 'role'>Role: None</h4>
+    <h4 id='listTitle'>User List</h4>
+    <ul id='userList'></ul>
+  </section>
+  <div id='container'>
+    <section id='chatContent'>
+      <h4 id='chatTitle'>Chat</h4>
+      <textarea id="chat" rows="20" cols="60" readonly> </textarea>
+      <label for="message">Message:</label>
+      <input id="message" name="message" type="text" disabled/>
+      <input id="send" type="button" value="Send" disabled/>
+    </section>
+    <section id='logsContent'>
+      <h4 id='logs'>Logs</h4>
+      <em>Your logs can only be seen by you, and can be used to store helpful information you find.</em>
+      <textarea id="logs" rows="10" cols="60"> </textarea>
+    </section>
+  </div>
   
-  <p>The goal of this game is to create an engaging Social Deduction game in the style of Mafia/Werewolf where every player has a power role, or a role that allows them to take actions or gain information. Here is some planning for the roles and how the game will plan out.</p>
-  
-  <h4>Role Rules:</h4>
-  <ol>
-    <li>There is always one Assassin. In a game of 6, the one evil will always be an assassin</li>
-    <li>There can only be one of each role</li>
-    <li>In a game of 12, there will be one of each role</li>
-  </ol>
-  
-  <h4>Role Splits</h4>
-  <ul>
-    <li>6 Players: 1 Evil, 5 good</li>
-    <li>7 Players: 2 Evil, 5 good</li>
-    <li>8 Players: 2 Evil, 6 good</li>
-    <li>9 Players: 2 Evil, 7 good</li>
-    <li>10 Players: 3 Evil, 7 good</li>
-    <li>11 Players: 3 Evil, 8 good</li>
-    <li>12 Players: 4 Evil, 8 good</li>
-  </ul>
+  <section id='info'>
+    <p>Deduce Me is a Social Deduction game in the style of Mafia/Werewolf where every player has a power role, or a role that allows them to take actions or gain information. Players are assigned a role which is either good or evil. Good players aim to kill all of the evil players through use of their role actions or through executing them during a trial in the day. If the majority of the players accuse the same person during the day, that player will be voted on. Then, players can cast a vote for the accused being either executed or pardoned, or they can abstain from voting. If the majority of voting players choose to execute, the player is executed. After a vote, every player's vote is revealed. Evil players aim to equal or outnumber the good players through killing off good players, whether this be through role actions or through executing good players during votes. The game ends when either of these conditions are met, and the good or evil team wins.</p>
 
-  <h4>Roles and Descriptions</h4>
-  <ul>
-    <li>The Medic: Good, Visit at night to heal and prevent death</li>
-    <li>The Investigator: Good, Visit at night to get the faction of the player (Good or Evil)</li>
-    <li>The Follower: Good, watch a person to see who they visit</li>
-    <li>The Observer: Good, watch a person to see who visits them</li>
-    <li>The Guardian: Good, Protect a player, dying or being poisoned in their place, or Attempt to kill a player. If the player you attempt to kill is Good, you die instead.</li>
-    <li>The Flirt: Good, distract someone at night, stopping their night action</li>
-    <li>The Vigilante: Good, One bullet, shoots someone at night (one use only)</li>
-    <li>The Crier: Good, Can talk to all players at night but name is hidden</li>
-    <li>The Assassin: Evil, Kills once a night</li>
-    <li>The Phantom: Evil, Can choose to permanently disguise themselves as the player the Assassin kills that night (one use only)</li>
-    <li>The Chemist: Evil, Poisons a player, the player is notified of being poisoned and dies the next night if they are not healed before then</li>
-    <li>The Informant: Evil, gets the specific role of a player</li>
-  </ul>
-  
-  <em>Night Actions play out in this order</em>
-  <p>The Flirt -> The Chemist -> The Medic -> The Guardian -> The Follower -> The Observer -> The Informant -> The Assassin == The Vigilante -> The Phantom</p>
-
-  <p>The chemist poisons before the medic heals. If the medic heals the player who is being poisoned, they are notified that they had been poisoned, but that they were healed of the poison. Kills from The Assassin and The Vigilante will happen at the same time, so even if one of these players dies, the kill still happens.</p>
-  
-  <!-- List of Users -->
+    <h3>Commands</h3>
+    <ul>
+      <li>!choose displayName: This command chooses the player that you specify. During night time, this is used to choose that player to perform your role action on. During the day, this accuses that player of being evil.</li>
+      <li>!execute: This command is used during the Day Voting phase to vote to execute the accused player.</li>
+      <li>!pardon: This command is used during the Day Voting phase to vote to pardon the accused player.</li>
+    </ul>
     
+    <h3>Roles and Descriptions</h3>
+    <ul>
+      <li>The Medic: Good, Can choose to visit at night to heal a player of poison, and also prevent them from dying that night</li>
+      <li>The Investigator: Good, Can choose to visit a player at night to get the faction of the player (Good or Evil)</li>
+      <li>The Follower: Good, Can choose to watch a person to see who they visit at night.</li>
+      <li>The Observer: Good, Can choose to  watch a person to see who visits them at night.</li>
+      <li>The Guardian: Good, Can shoose to protect a player. If that player is attacked, you are killed instead.</li>
+      <li>The Knight: Good, Can choose to kill a player at night. If that player is good, you die instead.</li>
+      <li>The Flirt: Good, Can choose to distract someone at night, stopping their night action</li>
+      <li>The Vigilante: Good, One bullet, can choose to shoot someone at night (one use only)</li>
+      <li>The Crier: Good, Can talk to all players at night but name is hidden</li>
+      <li>The Assassin: Evil, Can choose to kill a player once a night</li>
+      <li>The Chemist: Evil, Can choose to  poison a player. The player is notified of being poisoned and dies the next night if they are not healed before then</li>
+      <li>The Informant: Evil, Can choose to get the specific role of a player</li>
+    </ul>
+
+    <em>Night Actions play out in this order</em>
+    <p>The Flirt -> The Observer -> The Follower -> The Chemist -> The Medic -> The Guardian -> The Investigator -> The Informant -> The Assassin == The Vigilante == The Knight</p>
+
+    <p>The chemist poisons before the medic heals. If the medic heals the player who is being poisoned, they are notified that they had been poisoned, but that they were healed of the poison. Kills from The Assassin, The Vigilante, and The Kinght, will happen at the same time, so even if one of these players dies the kill still happens.</p>
+
+    <h3>Role Rules</h3>
+    <ol>
+      <li>There is always one Assassin. In a game of 6 or 7, the one evil player will always be an assassin</li>
+      <li>There can only be one of each role</li>
+      <li>In a game of 12, there will be one of each role</li>
+    </ol>
+
+    <h3>Role Distribution (Based on total players)</h3>
+    <ul>
+      <li>6 Players: 1 Evil, 5 good</li>
+      <li>7 Players: 1 Evil, 6 good</li>
+      <li>8 Players: 2 Evil, 6 good</li>
+      <li>9 Players: 2 Evil, 7 good</li>
+      <li>10 Players: 2 Evil, 8 good</li>
+      <li>11 Players: 3 Evil, 8 good</li>
+      <li>12 Players: 3 Evil, 9 good</li>
+    </ul>
+  </section>
 </body>
 </html>

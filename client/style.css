@@ -1,0 +1,64 @@
+#pageTitle {
+  margin: 0 auto;
+  padding: none;
+  font-family: 'Righteous', cursive;
+  font-size: 50px;
+  text-align: center;
+}
+
+#login {
+  margin: 0 auto;
+  padding: none;
+  padding-top: 20px;
+  padding-bottom: 20px;
+  font-family: 'Roboto', sans-serif;
+  font-size: 24px;
+  text-align: center;
+  color: rgb(70, 70, 70);
+}
+
+#info {
+  font-family: 'Roboto', sans-serif;
+  font-size: 16px;
+}
+
+
+/*  
+CSS Display Flex
+https://www.w3schools.com/cssref/css3_pr_flex.asp
+https://css-tricks.com/snippets/css/a-guide-to-flexbox/
+*/
+#container {
+  display: flex;
+}
+
+#chatContent {
+  font-family: 'Roboto', sans-serif;
+  margin: 0 auto;
+}
+
+#logsContent {
+  font-family: 'Roboto', sans-serif;
+  margin: 0 auto;
+}
+
+#userContent {
+  margin: 0 auto;
+  width: 500px;
+  text-align: center;
+  font-family: 'Roboto', sans-serif;
+}
+
+#listTitle {
+  text-decoration: underline;
+}
+
+.userObj {
+  list-style-type: none;
+  border: 2px solid black;
+  margin: 0 auto;
+  padding: 0;
+  margin-top: 2px;
+  margin-bottom: 2px;
+  font-family: 'Roboto', sans-serif;
+}
