@@ -63,15 +63,10 @@ const setTimer = (r, time) => {
 // Function to decrease the timer by 1
 const decreaseTimer = (r) => {
   const room = r;
-  if (room.running) {
-    room.timer--;
-    io.sockets.in(room.roomName).emit('setTimer', {
-      time: room.timer,
-    });
-  } else {
-    clearInterval(roomIntervals[rooms.indexOf(room)]);
-    roomIntervals[rooms.indexOf(room)] = null;
-  }
+  room.timer--;
+  io.sockets.in(room.roomName).emit('setTimer', {
+    time: room.timer,
+  });
 };
 
 // Returns an array of all players who chose the choice specified
@@ -272,6 +267,9 @@ const endGame = (r, team) => {
   roomIntervals[roomIndex] = null;
   room.joinable = true;
   room.running = false;
+  io.sockets.in(room.roomName).emit('setPhase', {
+    phase: 'Game Over',
+  });
 
   // If there are still at least 6 players in the room, the game will start again
   // This causes a circular loop in our code
@@ -766,37 +764,39 @@ const handleExecution = (r) => {
     });
   }
 
-  // Display messages for every players vote
-  for (let i = 0; i < roomUsers.length; i++) {
-    const player = users[roomIndex][roomUsers[i]];
-    if (player.alive) {
-      if (player.vote) {
-        io.sockets.in(room.roomName).emit('msg', {
-          name: 'server',
-          msg: `${player.displayName} voted to ${player.vote}`,
-        });
-      } else {
-        io.sockets.in(room.roomName).emit('msg', {
-          name: 'server',
-          msg: `${player.displayName} abstained from voting`,
-        });
+  if (room.running) {
+    // Display messages for every players vote
+    for (let i = 0; i < roomUsers.length; i++) {
+      const player = users[roomIndex][roomUsers[i]];
+      if (player.alive) {
+        if (player.vote) {
+          io.sockets.in(room.roomName).emit('msg', {
+            name: 'server',
+            msg: `${player.displayName} voted to ${player.vote}`,
+          });
+        } else {
+          io.sockets.in(room.roomName).emit('msg', {
+            name: 'server',
+            msg: `${player.displayName} abstained from voting`,
+          });
+        }
       }
     }
-  }
 
-  // Set the timer to 10 seconds and end day after that
-  room.time = 'Day';
-  setTimer(room, 10);
-  io.sockets.in(room.roomName).emit('msg', {
-    name: 'server',
-    msg: 'Day will end in 10 seconds.',
-  });
-  io.sockets.in(room.roomName).emit('setPhase', {
-    phase: room.time,
-  });
-  roomTimeouts[roomIndex] = setTimeout(() => {
-    handleGame(room);
-  }, 10000);
+    // Set the timer to 10 seconds and end day after that
+    room.time = 'Day';
+    setTimer(room, 10);
+    io.sockets.in(room.roomName).emit('msg', {
+      name: 'server',
+      msg: 'Day will end in 10 seconds.',
+    });
+    io.sockets.in(room.roomName).emit('setPhase', {
+      phase: room.time,
+    });
+    roomTimeouts[roomIndex] = setTimeout(() => {
+      handleGame(room);
+    }, 10000);
+  }
 };
 
 const tallyAccusations = (r) => {
